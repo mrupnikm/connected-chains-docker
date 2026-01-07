@@ -14,14 +14,8 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      algorand: ${{ steps.changes.outputs.algorand }}
       bitcoind: ${{ steps.changes.outputs.bitcoind }}
-      debug: ${{ steps.changes.outputs.debug }}
       dogecoind: ${{ steps.changes.outputs.dogecoind }}
-      ethereumd: ${{ steps.changes.outputs.ethereumd }}
-      k8s_hc_sidecar: ${{ steps.changes.outputs.k8s_hc_sidecar }}
-      litecoind: ${{ steps.changes.outputs.litecoind }}
-      polygond: ${{ steps.changes.outputs.polygond }}
       rippled: ${{ steps.changes.outputs.rippled }}
 
     steps:
@@ -35,22 +29,10 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            algorand:
-              - 'images/algorand/**'
             bitcoind:
               - 'images/bitcoind/**'
-            debug:
-              - 'images/debug/**'
             dogecoind:
               - 'images/dogecoind/**'
-            ethereumd:
-              - 'images/ethereumd/**'
-            k8s_hc_sidecar:
-              - 'images/k8s_hc_sidecar/**'
-            litecoind:
-              - 'images/litecoind/**'
-            polygond:
-              - 'images/polygond/**'
             rippled:
               - 'images/rippled/**'
 
@@ -61,14 +43,8 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - algorand
           - bitcoind
-          - debug
           - dogecoind
-          - ethereumd
-          - k8s_hc_sidecar
-          - litecoind
-          - polygond
           - rippled
 
     steps:
