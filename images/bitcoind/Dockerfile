@@ -3,7 +3,7 @@ FROM debian:bookworm@sha256:93492d1405a072c9d3b89110490e330e0b7eb37754cafc952090
 
 ARG VERSION=v30.0
 
-ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/London"
+ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/Ljubljana"
 
 # https://github.com/bitcoin/bitcoin/blob/master/doc/build-unix.md#linux-distribution-specific-instructions
 RUN <<-EOF
@@ -26,7 +26,7 @@ RUN <<-EOF
     cmake -B build \
         --toolchain /opt/bitcoin/depends/x86_64-pc-linux-gnu/toolchain.cmake \
         -DCMAKE_INSTALL_PREFIX=/opt/bitcoin/build/
-    cmake --build build -j $(getconf _NPROCESSORS_ONLN) 
+    cmake --build build -j $(getconf _NPROCESSORS_ONLN)
     cmake --install build
     find /opt/bitcoin/build/bin -type f -executable -exec strip -s {} + 2>/dev/null || true
 EOF
