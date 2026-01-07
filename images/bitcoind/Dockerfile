@@ -3,7 +3,7 @@ FROM debian:bookworm@sha256:93492d1405a072c9d3b89110490e330e0b7eb37754cafc952090
 
 ARG VERSION=v30.0
 
-ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/Ljubljana"
+ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/London"
 
 # https://github.com/bitcoin/bitcoin/blob/master/doc/build-unix.md#linux-distribution-specific-instructions
 RUN <<-EOF
