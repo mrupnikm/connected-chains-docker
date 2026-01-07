@@ -3,7 +3,7 @@ FROM debian:12@sha256:b6507e340c43553136f5078284c8c68d86ec8262b1724dde73c325e8d3
 
 ARG VERSION=v1.14.9
 
-ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/London"
+ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/Ljubljana"
 
 RUN <<-EOF
     set -e

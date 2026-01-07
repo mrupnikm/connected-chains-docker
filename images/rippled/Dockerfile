@@ -3,7 +3,7 @@ FROM debian:trixie@sha256:0d01188e8dd0ac63bf155900fad49279131a876a1ea7fac917c62e
 
 ARG VERSION=3.0.0
 
-ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/London"
+ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/Ljubljana"
 
 RUN <<-EOF
     set -e
@@ -34,7 +34,7 @@ ENV PATH="/opt/conan_env/bin:$PATH"
 RUN <<-EOF
     set -e
     git config --global http.postBuffer 1048576000
-    conan config install /opt/ripple/conan/profiles/default -tf $(conan config home)/profiles 
+    conan config install /opt/ripple/conan/profiles/default -tf $(conan config home)/profiles
     conan remote add --index 0 xrplf "https://conan.ripplex.io"
     mkdir cmake_build
 EOF
