@@ -1,4 +1,4 @@
-name: Build images
+name: Build and Push Images
 
 on:
   push:
@@ -57,7 +57,6 @@ jobs:
   build-and-push:
     needs: detect-changes
     runs-on: ubuntu-latest
-    if: needs.detect-changes.outputs[matrix.image] == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -87,6 +86,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push ${{ matrix.image }}
+        if: ${{ needs.detect-changes.outputs[matrix.image] == 'true' }}
         uses: docker/build-push-action@v5
         with:
           context: images/${{ matrix.image }}
