@@ -27,16 +27,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
 
-      - name: Get image tag
+      - name: Get image tag (strip leading v)
         id: get_image_tag
         run: |
-          VERSION=$(grep "^ARG VERSION=" images/bitcoind/Dockerfile \
+          RAW_VERSION=$(grep "^ARG VERSION=" images/bitcoind/Dockerfile \
             | cut -d'=' -f2 \
             | tr -d '"' \
             | tr -d "'" \
-            | tr -d [:space:])
-          echo $VERSION
-          echo "image_tag=${VERSION}" >> $GITHUB_OUTPUT
+            | tr -d '[:space:]')
+
+          CLEAN_VERSION=${RAW_VERSION#v}
+
+          echo "Raw version: $RAW_VERSION"
+          echo "Clean version: $CLEAN_VERSION"
+
+          echo "image_tag=${CLEAN_VERSION}" >> $GITHUB_OUTPUT
+          echo "VERSION=${CLEAN_VERSION}" >> $GITHUB_ENV
 
       - name: Install cosign
         if: github.event_name != 'pull_request'
@@ -61,9 +67,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}},value=${{ steps.get_image_tag.outputs.image_tag }},enable=${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/') }}
+            type=raw,value=${{ steps.get_image_tag.outputs.image_tag }}
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
-            type=ref,event=tag,enable=${{ startsWith(github.ref, 'refs/tags/') }}
           flavor: |
             latest=false
 
@@ -73,6 +78,8 @@ jobs:
         with:
           context: images/bitcoind
           push: ${{ github.event_name != 'pull_request' }}
+          build-args: |
+            VERSION=${{ env.VERSION }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
