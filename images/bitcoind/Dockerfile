@@ -26,7 +26,7 @@ RUN <<-EOF
     cmake -B build \
         --toolchain /opt/bitcoin/depends/x86_64-pc-linux-gnu/toolchain.cmake \
         -DCMAKE_INSTALL_PREFIX=/opt/bitcoin/build/
-    cmake --build build -j $(getconf _NPROCESSORS_ONLN) 
+    cmake --build build -j $(getconf _NPROCESSORS_ONLN)
     cmake --install build
     find /opt/bitcoin/build/bin -type f -executable -exec strip -s {} + 2>/dev/null || true
 EOF
