@@ -170,6 +170,23 @@ If you are running attestation clients on a different machine, consider locking 
 
 If you are running the clients in different networks you might also want to consider running TLS, either natively on each node that supports it or behind a reverse proxy.
 
+# Container image
+
+Public container images are hosted on Github Packages;
+
+ghcr.io/flare-foundation/connected-chains-docker/bitcoind
+ghcr.io/flare-foundation/connected-chains-docker/litecoind
+ghcr.io/flare-foundation/connected-chains-docker/dogecoind
+ghcr.io/flare-foundation/connected-chains-docker/rippled
+ghcr.io/flare-foundation/connected-chains-docker/algorand
+
+Images are signed using Cosign with the GitHub OIDC provider. To verify the image, run this command:
+
+cosign verify \
+  --certificate-identity-regexp="^https://github\.com/flare-foundation/connected-chains-docker/\.github/workflows/release-.*\.yml@" \
+  --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+  ghcr.io/flare-foundation/connected-chains-docker/<IMAGE_NAME>:<TAG>
+
 # Mounted storage 
 If you mount additional storage and want it to be used by the chains, change docker data to your mounted directory:
 
