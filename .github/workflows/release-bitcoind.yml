@@ -13,7 +13,11 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}/bitcoind
 
-permissions: read-all
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+  actions: read
 
 jobs:
   build:
@@ -114,6 +118,8 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      packages: write
+      actions: read
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
       image: ${{ needs.build.outputs.image }}
