@@ -17,6 +17,7 @@ RUN <<-EOF
         curl
 EOF
 
+
 RUN git clone --single-branch --branch "${VERSION}" https://github.com/bitcoin/bitcoin.git /opt/bitcoin
 
 WORKDIR /opt/bitcoin
