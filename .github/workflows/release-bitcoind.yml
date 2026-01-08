@@ -22,6 +22,9 @@ jobs:
       contents: read
       packages: write
       id-token: write
+    outputs:
+      image: ${{ steps.meta.outputs.tags }}
+      digest: ${{ steps.build-and-push.outputs.digest }}
 
     steps:
       - name: Checkout repository
@@ -38,9 +41,6 @@ jobs:
 
           VERSION_FOR_GIT=$RAW_VERSION
           VERSION_FOR_TAG=${RAW_VERSION#v}
-
-          echo "Raw version (for git): $VERSION_FOR_GIT"
-          echo "Tag version (stripped): $VERSION_FOR_TAG"
 
           echo "VERSION_FOR_GIT=${VERSION_FOR_GIT}" >> $GITHUB_ENV
           echo "VERSION_FOR_TAG=${VERSION_FOR_TAG}" >> $GITHUB_ENV
@@ -107,3 +107,14 @@ jobs:
           --certificate-identity=https://github.com/${{ github.repository }}/.github/workflows/release-bitcoind.yml@${{ github.ref }} \
           --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
           "{}@${DIGEST}"
+
+  generate-provenance:
+    needs: [build]
+    if: github.event_name != 'pull_request'
+    permissions:
+      id-token: write
+      contents: read
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
+    with:
+      image: ${{ needs.build.outputs.image }}
+      digest: ${{ needs.build.outputs.digest }}
