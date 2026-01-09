@@ -1,0 +1,18 @@
+name: SLSA Docker Builder
+on: [push, workflow_dispatch]
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+  packages: write # For GHCR push
+
+jobs:
+  build:
+    uses: slsa-framework/slsa-github-generator/.github/workflows/builder_container-based_slsa3.yml@v2.1.0
+    with:
+      builder-image: "docker"
+      builder-digest: "sha256:173f284a4299164772a90f52b373e73e087583c0963f1334c9995f190ef6f3f5" # Get from `docker inspect docker:27.3`
+      config-path: "images/bitcoind/config.toml" # ← Path from repo root
+      registry-username: ${{ github.actor }}
+      registry-password: ${{ secrets.GITHUB_TOKEN }}

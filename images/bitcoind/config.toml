@@ -1,0 +1,9 @@
+# Build bitcoind from images/bitcoind/ directory
+command = [
+  "docker", "build", ".",
+  "--file", "Dockerfile",
+  "--tag", "ghcr.io/mrupnikm/connected-chains-docker/bitcoind:${{ github.sha }}",
+  "--push"
+]
+artifact_path = "bitcoind.tar"  # Or whatever captures your output
+
