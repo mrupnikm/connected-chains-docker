@@ -15,4 +15,5 @@ jobs:
       builder-digest: "sha256:173f284a4299164772a90f52b373e73e087583c0963f1334c9995f190ef6f3f5" # Get from `docker inspect docker:27.3`
       config-path: "images/bitcoind/config.toml" # ← Path from repo root
       registry-username: ${{ github.actor }}
+    secrets:
       registry-password: ${{ secrets.GITHUB_TOKEN }}
