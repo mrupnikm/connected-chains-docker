@@ -115,11 +115,6 @@ jobs:
   generate-provenance:
     needs: [build]
     if: github.event_name != 'pull_request'
-    permissions:
-      id-token: write
-      contents: read
-      packages: write
-      actions: read
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
       image: ${{ needs.build.outputs.image }}
