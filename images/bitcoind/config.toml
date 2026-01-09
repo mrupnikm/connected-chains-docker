@@ -1,9 +1,12 @@
-# Build bitcoind from images/bitcoind/ directory
 command = [
-  "docker", "build", ".",
-  "--file", "Dockerfile",
-  "--tag", "ghcr.io/mrupnikm/connected-chains-docker/bitcoind:${{ github.sha }}",
-  "--push"
+  "buildctl-daemonless.sh", "build",
+  "--frontend", "dockerfile.v0",
+  "--local", "context=.",
+  "--local", "dockerfile=.",
+  "--export-cache", "type=inline",
+  "--import-cache", "type=registry,ref=ghcr.io/mrupnikm/connected-chains-docker/bitcoind-cache",
+  "--output", "type=image,name=ghcr.io/mrupnikm/connected-chains-docker/bitcoind,push=true",
+  "--metadata-file", "/tmp/metadata.json"
 ]
 artifact_path = "bitcoind.tar"  # Or whatever captures your output
 
