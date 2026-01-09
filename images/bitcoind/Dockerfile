@@ -5,7 +5,6 @@ ARG VERSION=v30.0
 
 ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/London"
 
-
 # https://github.com/bitcoin/bitcoin/blob/master/doc/build-unix.md#linux-distribution-specific-instructions
 RUN <<-EOF
     set -e
