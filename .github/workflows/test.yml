@@ -3,6 +3,7 @@ name: Release bitcoind image
 on:
   push:
     branches: ["*"]
+
 jobs:
   release:
     uses: ./.github/workflows/slsa3-bitcoind.yml

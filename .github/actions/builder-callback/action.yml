@@ -1,5 +1,5 @@
 name: "Build Callback Action"
-description: "Builds go-flare binaries for SLSA provenance"
+description: "Builds bitcoind image for SLSA provenance"
 
 inputs:
   slsa-workflow-inputs:
@@ -8,18 +8,8 @@ inputs:
   slsa-layout-file:
     description: "Location to store layout content"
     required: true
-  registry:
-    description: "Container registry"
-    required: true
-    default: ghcr.io
-  image_name:
-    description: "Image name (e.g. owner/repo/bitcoind)"
-    required: true
-  github_token:
-    description: "GitHub token for registry auth"
-    required: true
 
-  # Unused secrets - framework requires these to be declared
+  # Required dummy secrets for SLSA BYOB
   slsa-workflow-secret1: {}
   slsa-workflow-secret2: {}
   slsa-workflow-secret3: {}
@@ -50,6 +40,21 @@ outputs:
 runs:
   using: "composite"
   steps:
+    ###########################################################################
+    # 1. Parse SLSA workflow inputs (THIS WAS THE MISSING PART)
+    ###########################################################################
+    - name: Parse SLSA workflow inputs
+      id: parse
+      shell: bash
+      run: |
+        echo "REGISTRY=$(echo '${{ inputs.slsa-workflow-inputs }}' | jq -r '.registry')" >> $GITHUB_ENV
+        echo "IMAGE_NAME=$(echo '${{ inputs.slsa-workflow-inputs }}' | jq -r '.image_name')" >> $GITHUB_ENV
+        echo "GITHUB_TOKEN=$(echo '${{ inputs.slsa-workflow-inputs }}' | jq -r '.github_token')" >> $GITHUB_ENV
+
+    ###########################################################################
+    # 2. Build + Sign + Verify + Emit SLSA Layout
+    ###########################################################################
+
     - name: Checkout repository
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
 
@@ -84,15 +89,15 @@ runs:
       if: ${{ github.event_name != 'pull_request' }}
       uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
       with:
-        registry: ${{ inputs.registry }}
+        registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
-        password: ${{ inputs.github_token }}
+        password: ${{ env.GITHUB_TOKEN }}
 
     - name: Extract Docker metadata
       id: meta
       uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f
       with:
-        images: ${{ inputs.registry }}/${{ inputs.image_name }}
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
           type=raw,value=${{ env.VERSION_FOR_TAG }}
           type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}

@@ -12,16 +12,6 @@ on:
       github_token:
         required: true
         type: string
-    outputs:
-      image:
-        description: "Published image tags"
-        value: ${{ jobs.slsa-run.outputs.image }}
-      digest:
-        description: "Image digest"
-        value: ${{ jobs.slsa-run.outputs.digest }}
-      attestations:
-        description: "SLSA attestation metadata"
-        value: ${{ jobs.slsa-run.outputs.attestations }}
 
 permissions: read-all
 
