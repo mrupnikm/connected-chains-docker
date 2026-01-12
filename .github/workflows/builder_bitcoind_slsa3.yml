@@ -1,19 +1,60 @@
-name: Release bitcoind image
+name: SLSA3 Bitcoind Builder
 
 on:
-  push:
-    branches: ["*"]
+  workflow_call:
+    inputs:
+      registry:
+        required: true
+        type: string
+      image_name:
+        required: true
+        type: string
+      github_token:
+        required: true
+        type: string
+    outputs:
+      image:
+        description: "Published image tags"
+        value: ${{ jobs.slsa-run.outputs.image }}
+      digest:
+        description: "Image digest"
+        value: ${{ jobs.slsa-run.outputs.digest }}
+      attestations:
+        description: "SLSA attestation metadata"
+        value: ${{ jobs.slsa-run.outputs.attestations }}
+
+permissions: read-all
 
 jobs:
-  release:
+  slsa-setup:
+    permissions:
+      id-token: write
+      contents: read
     runs-on: ubuntu-latest
+    outputs:
+      slsa-token: ${{ steps.setup.outputs.slsa-token }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Build + sign + publish
-        uses: ./.github/actions/builder-callback
         with:
-          registry: ghcr.io
-          image_name: ${{ github.repository }}/bitcoind
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup SLSA
+        id: setup
+        uses: slsa-framework/slsa-github-generator/actions/delegator/setup-generic@v2.1.0
+        with:
+          slsa-workflow-recipient: "delegator_generic_slsa3.yml"
+          slsa-runner-label: "ubuntu-latest"
+          slsa-build-action-path: "./.github/actions/builder-callback"
+          slsa-workflow-inputs: ${{ toJson(inputs) }}
+
+  slsa-run:
+    needs: [slsa-setup]
+    permissions:
+      id-token: write
+      contents: write
+      packages: write
+      actions: read
+    uses: slsa-framework/slsa-github-generator/.github/workflows/delegator_generic_slsa3.yml@v2.1.0
+    with:
+      slsa-token: ${{ needs.slsa-setup.outputs.slsa-token }}
