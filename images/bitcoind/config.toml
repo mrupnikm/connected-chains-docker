@@ -1,15 +1,11 @@
 command = [
   "sh",
   "-c",
-  "dockerd-entrypoint.sh & sleep 5 && \
-   docker buildx create --use --name slsa && \
-   docker buildx build \
-     --platform linux/amd64 \
-     -t bitcoind:build \
-     -f images/bitcoind/Dockerfile \
-     images/bitcoind \
-     --load && \
-   docker save bitcoind:build -o bitcoind.tar"
+  "buildctl-daemonless.sh build \
+     --frontend dockerfile.v0 \
+     --local context=images/bitcoind \
+     --local dockerfile=images/bitcoind \
+     --output type=oci,dest=bitcoind.tar"
 ]
 
 artifact_path = "bitcoind.tar"
