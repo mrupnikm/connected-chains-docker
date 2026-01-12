@@ -1,0 +1,15 @@
+name: Release bitcoind image
+
+on:
+  push:
+    branches: ["*"]
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build + sign + publish
+        uses: ./.github/actions/release-bitcoind
+        with:
+          registry: ghcr.io
+          image_name: ${{ github.repository }}/bitcoind
+          github_token: ${{ secrets.GITHUB_TOKEN }}
