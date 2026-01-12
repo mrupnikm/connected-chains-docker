@@ -27,9 +27,15 @@ jobs:
     outputs:
       slsa-token: ${{ steps.setup.outputs.slsa-token }}
     steps:
-      - name: echo""
-        run: echo "My secret is ${{ secrets.gh_token }}"
-
+      - name: Check secret length
+        env:
+          SECRET: ${{ secrets.MY_SECRET }}
+        run: |
+          if [ ${#SECRET} -gt 0 ]; then
+            echo "Secret is set (length: ${#SECRET})"
+          else
+            echo "Secret is empty or missing"
+          fi
       - name: Checkout
         uses: actions/checkout@v4
         with:
