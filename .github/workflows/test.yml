@@ -10,4 +10,5 @@ jobs:
     with:
       registry: ghcr.io
       image_name: ${{ github.repository }}/bitcoind
-      github_token: "example"
+    secrets:
+      github_token: ${{ secrets.GITHUB_TOKEN }}
