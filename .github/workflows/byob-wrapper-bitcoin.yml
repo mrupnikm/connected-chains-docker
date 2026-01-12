@@ -2,12 +2,12 @@ name: Release bitcoind image
 
 on:
   push:
-    branches: ["main"]
-    tags: ["*"]
-    paths: ["images/bitcoind/**"]
-  pull_request:
-    branches: ["main"]
-    paths: ["images/bitcoind/**"]
+    branches: ["feat/byob-slsa-wrapper"]
+  #   tags: ["*"]
+  #   paths: ["images/bitcoind/**"]
+  # pull_request:
+  #   branches: ["main"]
+  #   paths: ["images/bitcoind/**"]
 
 env:
   REGISTRY: ghcr.io
