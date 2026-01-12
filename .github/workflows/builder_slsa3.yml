@@ -55,6 +55,7 @@ jobs:
           slsa-build-action-path: "./.github/actions/build-callback"
           slsa-workflow-inputs: ${{ toJson(inputs) }}
           slsa-rekor-log-public: ${{ inputs.rekor-log-public }}
+          slsa-workflow-masked-inputs: ""
 
   slsa-run:
     needs: [slsa-setup]
