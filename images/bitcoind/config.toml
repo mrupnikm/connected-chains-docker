@@ -1,5 +1,5 @@
 command = [
-  "bash",
+  "sh",
   "-c",
   "dockerd-entrypoint.sh & sleep 5 && \
    docker buildx create --use --name slsa && \
