@@ -1,12 +1,16 @@
 command = [
-  "buildctl-daemonless.sh", "build",
-  "--frontend", "dockerfile.v0",
-  "--local", "context=.",
-  "--local", "dockerfile=.",
-  "--export-cache", "type=inline",
-  "--import-cache", "type=registry,ref=ghcr.io/mrupnikm/connected-chains-docker/bitcoind-cache",
-  "--output", "type=image,name=ghcr.io/mrupnikm/connected-chains-docker/bitcoind,push=true",
-  "--metadata-file", "/tmp/metadata.json"
+  "bash",
+  "-c",
+  "dockerd-entrypoint.sh & sleep 5 && \
+   docker buildx create --use --name slsa && \
+   docker buildx build \
+     --platform linux/amd64 \
+     -t bitcoind:build \
+     -f images/bitcoind/Dockerfile \
+     images/bitcoind \
+     --load && \
+   docker save bitcoind:build -o bitcoind.tar"
 ]
-artifact_path = "bitcoind.tar"  # Or whatever captures your output
+
+artifact_path = "bitcoind.tar"
 

@@ -11,8 +11,8 @@ jobs:
   build:
     uses: slsa-framework/slsa-github-generator/.github/workflows/builder_container-based_slsa3.yml@v2.1.0
     with:
-      builder-image: "moby/buildkit"
-      builder-digest: "sha256:5601811fde88bb9e8a577bfe804af82bccb712e1cd07ff94663bded5e628cf75"
+      builder-image: "docker/buildx-bin"
+      builder-digest: "sha256:fcf5d30e5211e6ba0cd3dd94f26ae9824272c264069772e65bea26f0ec469717"
       config-path: "images/bitcoind/config.toml" # ← Path from repo root
       registry-username: ${{ github.actor }}
     secrets:
