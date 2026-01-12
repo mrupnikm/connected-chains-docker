@@ -21,10 +21,11 @@ permissions:
 
 jobs:
   slsa-setup:
+    runs-on: ubuntu-latest
+
     permissions:
       id-token: write
       contents: read
-    runs-on: ubuntu-${{ inputs.ubuntu_version }}
     outputs:
       slsa-token: ${{ steps.setup.outputs.slsa-token }}
     steps:
