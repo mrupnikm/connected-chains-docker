@@ -1,0 +1,70 @@
+name: SLSA3 Builder
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      registry:
+        required: true
+        type: string
+      image_name:
+        required: true
+        type: string
+      push:
+        required: true
+        type: boolean
+      rekor-log-public:
+        required: true
+        type: boolean
+    secrets:
+      registry-password:
+        required: true
+    outputs:
+      image:
+        value: ${{ jobs.slsa-run.outputs.image }}
+      digest:
+        value: ${{ jobs.slsa-run.outputs.digest }}
+      build-artifacts-name:
+        value: ${{ jobs.slsa-run.outputs.build-artifacts-name }}
+      attestations-download-name:
+        value: ${{ jobs.slsa-run.outputs.attestations-download-name }}
+
+permissions: read-all
+
+jobs:
+  slsa-setup:
+    permissions:
+      id-token: write
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      slsa-token: ${{ steps.setup.outputs.slsa-token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup SLSA
+        id: setup
+        uses: slsa-framework/slsa-github-generator/actions/delegator/setup-generic@v2.1.0
+        with:
+          slsa-workflow-recipient: "delegator_generic_slsa3.yml"
+          slsa-runner-label: "ubuntu-latest"
+          slsa-build-action-path: "./.github/actions/build-callback"
+          slsa-workflow-inputs: ${{ toJson(inputs) }}
+          slsa-rekor-log-public: ${{ inputs.rekor-log-public }}
+
+  slsa-run:
+    needs: [slsa-setup]
+    permissions:
+      id-token: write
+      contents: write
+      packages: write
+      actions: read
+    uses: slsa-framework/slsa-github-generator/.github/workflows/delegator_generic_slsa3.yml@v2.1.0
+    with:
+      slsa-token: ${{ needs.slsa-setup.outputs.slsa-token }}
+    secrets:
+      secret1: ${{ secrets.registry-password }}
