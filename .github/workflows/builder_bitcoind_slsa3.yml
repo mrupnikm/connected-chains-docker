@@ -49,7 +49,8 @@ jobs:
           slsa-runner-label: "ubuntu-latest"
           slsa-build-action-path: "./.github/actions/builder-callback"
           slsa-workflow-inputs: ${{ toJson(inputs) }}
-          slsa-workflow-secret1: ${{ secrets.gh_token}}
+        secrets:
+          secret1: ${{ secrets.gh_token }}
 
   slsa-run:
     needs: [slsa-setup]
