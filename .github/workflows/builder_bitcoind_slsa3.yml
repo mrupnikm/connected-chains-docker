@@ -3,12 +3,16 @@ name: Release bitcoind image
 on:
   push:
     branches: ["*"]
+
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Build + sign + publish
-        uses: ./.github/actions/builder-callback/aciton.yml
+        uses: ./.github/actions/builder-callback
         with:
           registry: ghcr.io
           image_name: ${{ github.repository }}/bitcoind
