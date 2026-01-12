@@ -1,0 +1,190 @@
+name: "Build Callback Action"
+description: "Builds bitcoind Docker image for SLSA provenance"
+
+inputs:
+  slsa-workflow-inputs:
+    description: "All inputs as JSON"
+    required: true
+  slsa-layout-file:
+    description: "Location to store layout content"
+    required: true
+
+  # Required by BYOB even if unused
+  slsa-workflow-secret1: {}
+  slsa-workflow-secret2: {}
+  slsa-workflow-secret3: {}
+  slsa-workflow-secret4: {}
+  slsa-workflow-secret5: {}
+  slsa-workflow-secret6: {}
+  slsa-workflow-secret7: {}
+  slsa-workflow-secret8: {}
+  slsa-workflow-secret9: {}
+  slsa-workflow-secret10: {}
+  slsa-workflow-secret11: {}
+  slsa-workflow-secret12: {}
+  slsa-workflow-secret13: {}
+  slsa-workflow-secret14: {}
+  slsa-workflow-secret15: {}
+
+outputs:
+  attestations:
+    description: "Attestation metadata for built artifacts"
+    value: ${{ steps.generate-attestations.outputs.attestations }}
+  build-artifacts-name:
+    description: "Name of uploaded build artifacts"
+    value: ${{ steps.upload.outputs.name }}
+  build-artifacts-sha256:
+    description: "SHA256 of uploaded artifacts"
+    value: ${{ steps.upload.outputs.sha256 }}
+
+runs:
+  using: "composite"
+  steps:
+    ###########################################################################
+    # 1. CHECKOUT TOOL REPO (BYOB places it in __TOOL_CHECKOUT_DIR__)
+    ###########################################################################
+    - name: Checkout tool repo
+      uses: actions/checkout@v4
+      with:
+        path: ./tool
+
+    ###########################################################################
+    # 2. PARSE INPUTS
+    ###########################################################################
+    - name: Parse workflow inputs
+      id: parsed
+      shell: bash
+      run: |
+        echo "version=$(jq -r '.version' <<< '${{ inputs.slsa-workflow-inputs }}')" >> $GITHUB_OUTPUT
+        echo "registry=$(jq -r '.registry' <<< '${{ inputs.slsa-workflow-inputs }}')" >> $GITHUB_OUTPUT
+        echo "image_name=$(jq -r '.image_name' <<< '${{ inputs.slsa-workflow-inputs }}')" >> $GITHUB_OUTPUT
+        echo "push=$(jq -r '.push' <<< '${{ inputs.slsa-workflow-inputs }}')" >> $GITHUB_OUTPUT
+
+    ###########################################################################
+    # 3. RUN YOUR ORIGINAL DOCKER BUILD STEPS
+    ###########################################################################
+    - name: Checkout repository
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      with:
+        path: repo
+
+    - name: Get image tag
+      id: get_image_tag
+      shell: bash
+      working-directory: repo
+      run: |
+        RAW_VERSION=$(grep "^ARG VERSION=" images/bitcoind/Dockerfile \
+          | cut -d'=' -f2 \
+          | tr -d '"' \
+          | tr -d "'" \
+          | tr -d '[:space:]')
+
+        VERSION_FOR_GIT=$RAW_VERSION
+        VERSION_FOR_TAG=${RAW_VERSION#v}
+
+        echo "VERSION_FOR_GIT=${VERSION_FOR_GIT}" >> $GITHUB_ENV
+        echo "VERSION_FOR_TAG=${VERSION_FOR_TAG}" >> $GITHUB_ENV
+        echo "image_tag=${VERSION_FOR_TAG}" >> $GITHUB_OUTPUT
+
+    - name: Install cosign
+      uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad
+      with:
+        cosign-release: "v2.5.3"
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435
+
+    - name: Log into registry
+      uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
+      with:
+        registry: ${{ steps.parsed.outputs.registry }}
+        username: ${{ github.actor }}
+        password: ${{ inputs.slsa-workflow-secret1 }}
+
+    - name: Extract Docker metadata
+      id: meta
+      uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f
+      with:
+        images: ${{ steps.parsed.outputs.registry }}/${{ steps.parsed.outputs.image_name }}
+        tags: |
+          type=raw,value=${{ env.VERSION_FOR_TAG }}
+          type=raw,value=latest,enable=true
+        flavor: |
+          latest=false
+
+    - name: Build and push Docker image
+      id: build-and-push
+      uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
+      with:
+        context: repo/images/bitcoind
+        push: ${{ steps.parsed.outputs.push }}
+        build-args: |
+          VERSION=${{ env.VERSION_FOR_GIT }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Sign the published Docker image
+      if: ${{ steps.parsed.outputs.push == 'true' }}
+      shell: bash
+      env:
+        TAGS: ${{ steps.meta.outputs.tags }}
+        DIGEST: ${{ steps.build-and-push.outputs.digest }}
+      run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+
+    ###########################################################################
+    # 4. GENERATE SLSA LAYOUT FILE
+    ###########################################################################
+    - name: Generate layout file
+      id: generate-layout
+      shell: bash
+      run: |
+        IMAGE="${{ steps.meta.outputs.tags }}"
+        DIGEST="${{ steps.build-and-push.outputs.digest }}"
+
+        cat > "${{ inputs.slsa-layout-file }}" <<EOF
+        {
+          "version": 1,
+          "attestations": [
+            {
+              "name": "bitcoind-image",
+              "subjects": [
+                {
+                  "name": "${IMAGE}",
+                  "digest": {
+                    "sha256": "${DIGEST}"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+        EOF
+
+    ###########################################################################
+    # 5. CREATE ATTESTATION METADATA (REQUIRED BY BYOB)
+    ###########################################################################
+    - name: Generate attestation metadata
+      id: generate-attestations
+      shell: bash
+      run: |
+        echo "{\"attestations\": [{\"name\": \"bitcoind-image\", \"digest\": \"${{ steps.build-and-push.outputs.digest }}\"}]}" \
+          > attestations.json
+        echo "attestations=$(cat attestations.json)" >> $GITHUB_OUTPUT
+
+    ###########################################################################
+    # 6. UPLOAD A DUMMY ARTIFACT (BYOB REQUIRES THIS OUTPUT SHAPE)
+    ###########################################################################
+    - name: Create dummy artifact folder
+      shell: bash
+      run: |
+        mkdir -p dummy
+        echo "bitcoind image digest: ${{ steps.build-and-push.outputs.digest }}" > dummy/info.txt
+
+    - name: Upload dummy artifact
+      id: upload
+      uses: slsa-framework/slsa-github-generator/actions/delegator/secure-upload-folder@v2.1.0
+      with:
+        name: "bitcoind-image-info"
+        path: ./dummy/
