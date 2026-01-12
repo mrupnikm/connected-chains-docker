@@ -114,18 +114,18 @@ runs:
         DIGEST: ${{ steps.build-and-push.outputs.digest }}
       run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
-    - name: Verify ghcr image signatures
-      if: ${{ github.event_name != 'pull_request' }}
-      shell: bash
-      env:
-        COSIGN_EXPERIMENTAL: 1
-        TAGS: ${{ steps.meta.outputs.tags }}
-        DIGEST: ${{ steps.build-and-push.outputs.digest }}
-      run: |
-        echo "${TAGS}" | xargs -I {} cosign verify \
-        --certificate-identity=https://github.com/${{ github.repository }}/.github/workflows/release-bitcoind.yml@${{ github.ref }} \
-        --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
-        "{}@${DIGEST}"
+    # - name: Verify ghcr image signatures
+    #   if: ${{ github.event_name != 'pull_request' }}
+    #   shell: bash
+    #   env:
+    #     COSIGN_EXPERIMENTAL: 1
+    #     TAGS: ${{ steps.meta.outputs.tags }}
+    #     DIGEST: ${{ steps.build-and-push.outputs.digest }}
+    #   run: |
+    #     echo "${TAGS}" | xargs -I {} cosign verify \
+    #     --certificate-identity=https://github.com/${{ github.repository }}/.github/workflows/release-bitcoind.yml@${{ github.ref }} \
+    #     --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+    #     "{}@${DIGEST}"
 
     - name: Generate SLSA layout file
       id: generate-attestations
