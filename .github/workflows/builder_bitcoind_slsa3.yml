@@ -43,14 +43,12 @@ jobs:
 
       - name: Setup SLSA
         id: setup
-        uses: slsa-framework/slsa-github-generator/actions/delegator/delegator_generic_slsa3@v2.1.0
+        uses: slsa-framework/slsa-github-generator/actions/delegator/setup_generic@v2.1.0
         with:
-          # slsa-workflow-recipient: "delegator_generic_slsa3.yml"
+          slsa-workflow-recipient: "delegator_generic_slsa3.yml"
           slsa-runner-label: "ubuntu-latest"
           slsa-build-action-path: "./.github/actions/builder-callback"
           slsa-workflow-inputs: ${{ toJson(inputs) }}
-        secrets:
-          secret1: ${{ secrets.gh_token }}
 
   slsa-run:
     needs: [slsa-setup]
@@ -62,3 +60,5 @@ jobs:
     uses: slsa-framework/slsa-github-generator/.github/workflows/delegator_generic_slsa3.yml@v2.1.0
     with:
       slsa-token: ${{ needs.slsa-setup.outputs.slsa-token }}
+    secrets:
+      secret1: ${{ secrets.gh_token }}
