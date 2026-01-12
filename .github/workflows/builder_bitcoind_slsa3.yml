@@ -27,6 +27,9 @@ jobs:
     outputs:
       slsa-token: ${{ steps.setup.outputs.slsa-token }}
     steps:
+      - name: echo""
+        run: echo "My secret is ${{ secrets.gh_token }}"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
