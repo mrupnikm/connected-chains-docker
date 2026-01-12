@@ -2,6 +2,9 @@ name: SLSA3 Bitcoind Builder
 
 on:
   workflow_call:
+    secrets:
+      github_token:
+        required: true
     inputs:
       registry:
         required: true
@@ -9,9 +12,9 @@ on:
       image_name:
         required: true
         type: string
-      github_token:
-        required: true
-        type: string
+      # github_token:
+      #   required: true
+      #   type: string
 
 permissions: read-all
 
@@ -37,6 +40,7 @@ jobs:
           slsa-runner-label: "ubuntu-latest"
           slsa-build-action-path: "./.github/actions/builder-callback"
           slsa-workflow-inputs: ${{ toJson(inputs) }}
+          slsa-workflow-secret1: ${{ secrets.github_token }}
 
   slsa-run:
     needs: [slsa-setup]

@@ -49,7 +49,7 @@ runs:
       run: |
         echo "REGISTRY=$(echo '${{ inputs.slsa-workflow-inputs }}' | jq -r '.registry')" >> $GITHUB_ENV
         echo "IMAGE_NAME=$(echo '${{ inputs.slsa-workflow-inputs }}' | jq -r '.image_name')" >> $GITHUB_ENV
-        echo "GITHUB_TOKEN=$(echo '${{ inputs.slsa-workflow-inputs }}' | jq -r '.github_token')" >> $GITHUB_ENV
+        echo "GITHUB_TOKEN=$(echo '${{ inputs.slsa-workflow-secret1 }})" >> $GITHUB_ENV
 
     ###########################################################################
     # 2. Build + Sign + Verify + Emit SLSA Layout
