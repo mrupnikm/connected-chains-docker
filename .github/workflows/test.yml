@@ -1,0 +1,12 @@
+name: Release bitcoind image
+
+on:
+  push:
+    branches: ["*"]
+jobs:
+  release:
+    uses: ./.github/workflows/slsa3-bitcoind.yml
+    with:
+      registry: ghcr.io
+      image_name: ${{ github.repository }}/bitcoind
+      github_token: ${{ secrets.GITHUB_TOKEN }}
