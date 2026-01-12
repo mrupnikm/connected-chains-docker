@@ -29,7 +29,7 @@ jobs:
     steps:
       - name: Check secret length
         env:
-          SECRET: ${{ secrets.MY_SECRET }}
+          SECRET: ${{ secrets.gh_token }}
         run: |
           if [ ${#SECRET} -gt 0 ]; then
             echo "Secret is set (length: ${#SECRET})"
