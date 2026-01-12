@@ -43,7 +43,7 @@ jobs:
 
       - name: Setup SLSA
         id: setup
-        uses: slsa-framework/slsa-github-generator/actions/delegator/setup_generic@v2.1.0
+        uses: slsa-framework/slsa-github-generator/actions/delegator/setup-generic@v2.1.0
         with:
           slsa-workflow-recipient: "delegator_generic_slsa3.yml"
           slsa-runner-label: "ubuntu-latest"
