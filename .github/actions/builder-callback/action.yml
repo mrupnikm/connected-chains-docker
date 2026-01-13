@@ -135,25 +135,21 @@ runs:
 
         mkdir -p "$(dirname "$SLSA_OUTPUTS_ARTIFACTS_FILE")"
 
-        # Extract sha256 hash from digest (format: sha256:abc123...)
         HASH=$(echo "$DIGEST" | cut -d':' -f2)
 
-        cat <<EOF > "$SLSA_OUTPUTS_ARTIFACTS_FILE"
-        {
-          "version": 1,
-          "attestations": [{
-            "name": "bitcoind-image",
-            "subjects": [
-              {
-                "name": "$IMAGE",
-                "digest": {
-                  "sha256": "$HASH"
-                }
-              }
-            ]
-          }]
-        }
-        EOF
+        jq -n \
+          --arg image "$IMAGE" \
+          --arg hash "$HASH" \
+          '{
+            version: 1,
+            attestations: [{
+              name: "bitcoind-image",
+              subjects: [{
+                name: $image,
+                digest: { sha256: $hash }
+              }]
+            }]
+          }' > "$SLSA_OUTPUTS_ARTIFACTS_FILE"
 
         echo "Generated layout file:"
         cat "$SLSA_OUTPUTS_ARTIFACTS_FILE"
