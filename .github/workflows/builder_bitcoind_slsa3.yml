@@ -109,6 +109,11 @@ jobs:
       packages: write
       contents: read
     steps:
+      - name: Install cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad
+        with:
+          cosign-release: "v2.5.3"
+
       - name: Download attestations
         uses: actions/download-artifact@v4
         with:
@@ -122,14 +127,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.gh_token }}
 
-      - name: Upload attestation as OCI artifact to GHCR
+      - name: Upload attestation to GHCR
         env:
-          IMAGE_NAME: ${{ inputs.image_name }}
-          VERSION: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).image }}
+          IMAGE: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).image }}
+          DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
         run: |
           ATTESTATION_FILE=$(find ./attestations -type f | head -n 1)
-          VERSION_TAG=$(echo "$VERSION" | cut -d':' -f2)
 
-          # Push attestation as a separate OCI artifact
-          oras push "ghcr.io/${IMAGE_NAME}-attestation:${VERSION_TAG}" \
-            "$ATTESTATION_FILE:application/vnd.in-toto+json"
+          # Upload attestation as a blob reference to the image
+          cosign upload blob -f "$ATTESTATION_FILE" "${IMAGE}@${DIGEST}"
