@@ -147,36 +147,39 @@ runs:
         echo "${{ inputs.slsa-layout-file }}"
         echo "-------------------------"
 
-    - name: Generate SLSA layout file
-      id: generate-attestations
+    - name: Generate layout file
+      id: generate-layout
+      env:
+        SLSA_OUTPUTS_ARTIFACTS_FILE: ${{ inputs.slsa-layout-file }}
+        BUILD_DIR: ./../__TOOL_CHECKOUT_DIR__/avalanchego/build
+        BINARY_NAME: ${{ fromJSON(inputs.slsa-workflow-inputs).build_artifact_name }}
       shell: bash
       run: |
-        # MUST be first
-        DIGEST="${{ steps.build-and-push.outputs.digest }}"
-        FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | jq -R -s -r 'split("\n") | .[0]')
-        SHA256="${DIGEST#sha256:}"
+        set -euo pipefail
 
-        echo "DEBUG DIGEST=$DIGEST"
-        echo "DEBUG SHA256=$SHA256"
-        echo "DEBUG FIRST_TAG=$FIRST_TAG"
+        mkdir -p "$(dirname "$SLSA_OUTPUTS_ARTIFACTS_FILE")"
 
-        cat <<EOF > "${{ inputs.slsa-layout-file }}"
+        subjects=""
+        for binary in "$BUILD_DIR/avalanchego" "$BUILD_DIR/plugins/evm"; do
+          if [ -f "$binary" ]; then
+            hash=$(sha256sum "$binary" | awk '{print $1}')
+            subject_name=$(basename "$binary")
+
+            [ -n "$subjects" ] && subjects+=","
+
+            printf -v subject '{"name": "%s", "digest": {"sha256": "%s"}}' "$subject_name" "$hash"
+            subjects+="$subject"
+          fi
+        done
+
+        cat <<EOF > "$SLSA_OUTPUTS_ARTIFACTS_FILE"
         {
           "version": 1,
-          "attestations": [
-            {
-              "name": "${FIRST_TAG}",
-              "subjects": [
-                {
-                  "name": "${FIRST_TAG}",
-                  "digest": {
-                    "sha256": "${SHA256}"
-                  }
-                }
-              ]
-            }
-          ]
+          "attestations": [{
+            "name": "$BINARY_NAME-binaries",
+            "subjects": [${subjects}]
+          }]
         }
         EOF
 
-        echo "attestations=$(jq -c . "${{ inputs.slsa-layout-file }}")" >> $GITHUB_OUTPUT
+        cat "$SLSA_OUTPUTS_ARTIFACTS_FILE"
