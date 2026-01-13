@@ -72,10 +72,16 @@ jobs:
       packages: write
     steps:
       - name: Install cosign
-        if: ${{ github.event_name != 'pull_request' }}
         uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad
         with:
           cosign-release: "v2.5.3"
+
+      - name: Log into registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.gh_token }}
 
       - name: Sign image
         shell: bash
