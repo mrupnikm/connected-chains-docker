@@ -128,7 +128,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.gh_token }}
 
-      - name: Extract and attach attestation with cosign
+      - name: Extract and attach attestation
         env:
           IMAGE_NAME: ${{ inputs.image_name }}
           REGISTRY: ${{ inputs.registry }}
@@ -136,7 +136,7 @@ jobs:
         run: |
           cd ./attestations
           tar -xzf folder.tgz
-          ATTESTATION_FILE=$(find . -name "*.intoto.jsonl" -o -name "*.slsa" | head -n 1)
+          ATTESTATION_FILE=$(find . -name "*.slsa" | head -n 1)
 
           if [ -z "$ATTESTATION_FILE" ]; then
             echo "Error: No attestation file found"
@@ -144,30 +144,22 @@ jobs:
           fi
 
           echo "Found attestation: $ATTESTATION_FILE"
-          echo "Content preview:"
-          head -c 500 "$ATTESTATION_FILE"
-          echo ""
 
-          # Check if it's a Sigstore bundle format and extract the DSSE envelope
-          if jq -e '.mediaType' "$ATTESTATION_FILE" > /dev/null 2>&1; then
-            echo "Detected Sigstore bundle format, extracting DSSE envelope..."
-            jq '.dsseEnvelope' "$ATTESTATION_FILE" > attestation-dsse.json
-            ATTESTATION_FILE="attestation-dsse.json"
-          fi
+          # Extract certificate from bundle
+          CERT=$(jq -r '.verificationMaterial.x509CertificateChain.certificates[0].rawBytes' "$ATTESTATION_FILE")
 
-          # Verify the payload type
-          PAYLOAD_TYPE=$(jq -r '.payloadType' "$ATTESTATION_FILE")
-          echo "Payload type: $PAYLOAD_TYPE"
+          # Build cosign-compatible attestation with certificate
+          jq --arg cert "$CERT" '{
+            payloadType: .dsseEnvelope.payloadType,
+            payload: .dsseEnvelope.payload,
+            signatures: [.dsseEnvelope.signatures[0] + {cert: $cert}]
+          }' "$ATTESTATION_FILE" > cosign-attestation.json
 
-          if [ "$PAYLOAD_TYPE" != "application/vnd.in-toto+json" ]; then
-            echo "Error: Invalid payload type. Expected application/vnd.in-toto+json"
-            echo "File contents:"
-            cat "$ATTESTATION_FILE"
-            exit 1
-          fi
+          echo "Generated cosign attestation:"
+          cat cosign-attestation.json | jq .
 
           echo "Attaching to: ${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
 
           cosign attach attestation \
-            --attestation "$ATTESTATION_FILE" \
+            --attestation cosign-attestation.json \
             "${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
