@@ -101,3 +101,35 @@ jobs:
             --certificate-identity="https://github.com/${{ github.repository }}/.github/workflows/builder_bitcoind_slsa3.yml@${{ github.ref }}" \
             --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
             "{}@${DIGEST}"
+
+  publish-attestations:
+    needs: slsa-run
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: Download attestations
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.slsa-run.outputs.attestations-download-name }}
+          path: ./attestations
+
+      - name: Log into registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.gh_token }}
+
+      - name: Upload attestation as OCI artifact to GHCR
+        env:
+          IMAGE_NAME: ${{ inputs.image_name }}
+          VERSION: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).image }}
+        run: |
+          ATTESTATION_FILE=$(find ./attestations -type f | head -n 1)
+          VERSION_TAG=$(echo "$VERSION" | cut -d':' -f2)
+
+          # Push attestation as a separate OCI artifact
+          oras push "ghcr.io/${IMAGE_NAME}-attestation:${VERSION_TAG}" \
+            "$ATTESTATION_FILE:application/vnd.in-toto+json"
