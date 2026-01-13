@@ -133,8 +133,7 @@ runs:
       id: generate-attestations
       shell: bash
       run: |
-        TAG="${{ steps.meta.outputs.tags }}"
-        DIGEST="${{ steps.build-and-push.outputs.digest }}"
+        FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | jq -R -s -r 'split("\n") | .[0]')
         SHA256="${DIGEST#sha256:}"
 
         cat <<EOF > "${{ inputs.slsa-layout-file }}"
@@ -142,10 +141,10 @@ runs:
           "version": 1,
           "attestations": [
             {
-              "name": "${TAG}",
+              "name": "${FIRST_TAG}",
               "subjects": [
                 {
-                  "name": "${TAG}",
+                  "name": "${FIRST_TAG}",
                   "digest": {
                     "sha256": "${SHA256}"
                   }
@@ -155,5 +154,6 @@ runs:
           ]
         }
         EOF
+
 
         echo "attestations=$(jq -c . "${{ inputs.slsa-layout-file }}")" >> $GITHUB_OUTPUT
