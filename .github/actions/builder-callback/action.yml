@@ -135,8 +135,6 @@ runs:
       run: |
         TAG="${{ steps.meta.outputs.tags }}"
         DIGEST="${{ steps.build-and-push.outputs.digest }}"
-
-        # Extract the sha256 digest only (strip "sha256:")
         SHA256="${DIGEST#sha256:}"
 
         cat <<EOF > "${{ inputs.slsa-layout-file }}"
@@ -158,4 +156,4 @@ runs:
         }
         EOF
 
-        echo "attestations=$(jq -c . "${{ inputs.slsa-layout-file
+        echo "attestations=$(jq -c . "${{ inputs.slsa-layout-file }}")" >> $GITHUB_OUTPUT
