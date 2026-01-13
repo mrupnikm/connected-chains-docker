@@ -108,7 +108,13 @@ jobs:
     permissions:
       packages: write
       contents: read
+      id-token: write
     steps:
+      - name: Install cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad
+        with:
+          cosign-release: "v2.5.3"
+
       - name: Download attestations
         uses: actions/download-artifact@v4
         with:
@@ -122,42 +128,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.gh_token }}
 
-      - name: Extract and rename attestation file
-        env:
-          DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
-        run: |
-          cd ./attestations
-          tar -xzf folder.tgz
-          ATTESTATION_FILE=$(find . -name "*.slsa" | head -n 1)
-
-          if [ -z "$ATTESTATION_FILE" ]; then
-            echo "Error: No .slsa file found"
-            exit 1
-          fi
-
-          DIGEST_HASH=$(echo "$DIGEST" | cut -d':' -f2)
-          cp "$ATTESTATION_FILE" "${DIGEST_HASH}.intoto.jsonl"
-
-          echo "ATTESTATION_FILENAME=${DIGEST_HASH}.intoto.jsonl" >> $GITHUB_ENV
-          echo "ATTESTATION_DIR=$(pwd)" >> $GITHUB_ENV
-          ls -lah "${DIGEST_HASH}.intoto.jsonl"
-
-      - name: Install ORAS
-        run: |
-          curl -LO https://github.com/oras-project/oras/releases/download/v1.1.0/oras_1.1.0_linux_amd64.tar.gz
-          tar -xzf oras_*.tar.gz
-          sudo mv oras /usr/local/bin/
-
-      - name: Upload attestation to GHCR with ORAS
+      - name: Extract and attach attestation with cosign
         env:
           IMAGE_NAME: ${{ inputs.image_name }}
           REGISTRY: ${{ inputs.registry }}
           DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
         run: |
-          echo "${{ secrets.gh_token }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+          cd ./attestations
+          tar -xzf folder.tgz
+          ATTESTATION_FILE=$(find . -name "*.intoto.jsonl" -o -name "*.slsa" | head -n 1)
 
-          DIGEST_TAG=$(echo "$DIGEST" | sed 's/:/-/g')
+          if [ -z "$ATTESTATION_FILE" ]; then
+            echo "Error: No attestation file found"
+            exit 1
+          fi
 
-          cd "${ATTESTATION_DIR}"
-          oras push "${REGISTRY}/${IMAGE_NAME}:${DIGEST_TAG}.att" \
-            "${ATTESTATION_FILENAME}:application/vnd.in-toto+json"
+          echo "Found attestation: $ATTESTATION_FILE"
+          echo "Attaching to: ${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
+
+          cosign attach attestation \
+            --attestation "$ATTESTATION_FILE" \
+            "${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
