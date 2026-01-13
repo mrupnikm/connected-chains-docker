@@ -70,21 +70,20 @@ jobs:
       id-token: write
       contents: read
       packages: write
-
     steps:
       - name: Sign image
         shell: bash
         env:
-          TAG: ${{ needs.slsa-run.outputs.image }}
-          DIGEST: ${{ needs.slsa-run.outputs.digest }}
+          TAG: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).image }}
+          DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
         run: |
           echo "$TAG" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
       - name: Verify image
         shell: bash
         env:
-          TAG: ${{ needs.slsa-run.outputs.image }}
-          DIGEST: ${{ needs.slsa-run.outputs.digest }}
+          TAG: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).image }}
+          DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
         run: |
           echo "$TAG" | xargs -I {} cosign verify \
             --certificate-identity="https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}" \
