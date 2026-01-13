@@ -98,6 +98,6 @@ jobs:
           DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
         run: |
           echo "$TAG" | xargs -I {} cosign verify \
-            --certificate-identity="https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}" \
+            --certificate-identity="https://github.com/${{ github.repository }}/.github/workflows/builder_bitcoind_slsa3.yml@${{ github.ref }}" \
             --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
             "{}@${DIGEST}"
