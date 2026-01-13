@@ -109,6 +109,19 @@ jobs:
       packages: write
       contents: read
     steps:
+      - name: Download attestations
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.slsa-run.outputs.attestations-download-name }}
+          path: ./attestations
+
+      - name: Log into registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.gh_token }}
+
       - name: Extract and rename attestation file
         env:
           DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
@@ -125,7 +138,6 @@ jobs:
           DIGEST_HASH=$(echo "$DIGEST" | cut -d':' -f2)
           cp "$ATTESTATION_FILE" "${DIGEST_HASH}.intoto.jsonl"
 
-          # Save both filename and full path
           echo "ATTESTATION_FILENAME=${DIGEST_HASH}.intoto.jsonl" >> $GITHUB_ENV
           echo "ATTESTATION_PATH=$(pwd)/${DIGEST_HASH}.intoto.jsonl" >> $GITHUB_ENV
           ls -lah "${DIGEST_HASH}.intoto.jsonl"
@@ -142,52 +154,9 @@ jobs:
           REGISTRY: ${{ inputs.registry }}
           DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
         run: |
+          echo "${{ secrets.gh_token }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+
           DIGEST_TAG=$(echo "$DIGEST" | sed 's/:/-/g')
 
           oras push "${REGISTRY}/${IMAGE_NAME}:${DIGEST_TAG}.att" \
             "${ATTESTATION_PATH}:application/vnd.in-toto+json"
-    # - name: Install cosign
-    #   uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad
-    #   with:
-    #     cosign-release: "v2.5.3"
-    #
-    # - name: Download attestations
-    #   uses: actions/download-artifact@v4
-    #   with:
-    #     name: ${{ needs.slsa-run.outputs.attestations-download-name }}
-    #     path: ./attestations
-    #
-    # - name: Extract and rename attestation file
-    #   env:
-    #     DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
-    #   run: |
-    #     cd ./attestations
-    #     tar -xzf folder.tgz
-    #     ATTESTATION_FILE=$(find . -name "*.slsa" | head -n 1)
-    #
-    #     if [ -z "$ATTESTATION_FILE" ]; then
-    #       echo "Error: No .slsa file found"
-    #       exit 1
-    #     fi
-    #
-    #     DIGEST_HASH=$(echo "$DIGEST" | cut -d':' -f2)
-    #     cp "$ATTESTATION_FILE" "../${DIGEST_HASH}.intoto.jsonl"
-    #     echo "ATTESTATION_FILE=${DIGEST_HASH}.intoto.jsonl" >> $GITHUB_ENV
-    #
-    # - name: Log into registry
-    #   uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
-    #   with:
-    #     registry: ghcr.io
-    #     username: ${{ github.actor }}
-    #     password: ${{ secrets.gh_token }}
-    #
-    # - name: Upload attestation to GHCR using digest naming
-    #   env:
-    #     IMAGE_NAME: ${{ inputs.image_name }}
-    #     REGISTRY: ${{ inputs.registry }}
-    #     DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
-    #   run: |
-    #     DIGEST_TAG=$(echo "$DIGEST" | sed 's/:/-/g')
-    #
-    #     # Upload using the same pattern as cosign signatures
-    #     cosign upload blob -f "$ATTESTATION_FILE" "${REGISTRY}/${IMAGE_NAME}:${DIGEST_TAG}.att"
