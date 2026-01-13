@@ -62,3 +62,31 @@ jobs:
       slsa-token: ${{ needs.slsa-setup.outputs.slsa-token }}
     secrets:
       secret1: ${{ secrets.gh_token }}
+
+  sign-and-verify:
+    needs: slsa-run
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+
+    steps:
+      - name: Sign image
+        shell: bash
+        env:
+          TAG: ${{ needs.slsa-run.outputs.image }}
+          DIGEST: ${{ needs.slsa-run.outputs.digest }}
+        run: |
+          echo "$TAG" | xargs -I {} cosign sign --yes {}@${DIGEST}
+
+      - name: Verify image
+        shell: bash
+        env:
+          TAG: ${{ needs.slsa-run.outputs.image }}
+          DIGEST: ${{ needs.slsa-run.outputs.digest }}
+        run: |
+          echo "$TAG" | xargs -I {} cosign verify \
+            --certificate-identity="https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}" \
+            --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+            "{}@${DIGEST}"

@@ -161,3 +161,17 @@ runs:
         EOF
 
         cat "$SLSA_OUTPUTS_ARTIFACTS_FILE"
+
+    - name: Output bundle
+      id: out
+      shell: bash
+      env:
+        TAGS: ${{ steps.meta.outputs.tags }}
+        DIGEST: ${{ steps.build-and-push.outputs.digest }}
+        ATTEST: ${{ steps.generate-layout.outputs.attestations }}
+
+      run: |
+        FIRST_TAG=$(printf '%s\n' "$TAGS" | head -n1)
+        echo "image=$FIRST_TAG" >> $GITHUB_OUTPUT
+        echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+        echo "attestations=$ATTEST" >> $GITHUB_OUTPUT
