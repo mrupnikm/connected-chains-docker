@@ -11,7 +11,7 @@ inputs:
 
   # Required dummy secrets for SLSA BYOB
   slsa-workflow-secret1:
-    description: "hell"
+    description: "GitHub token"
     required: true
   slsa-workflow-secret2: {}
   slsa-workflow-secret3: {}
@@ -34,7 +34,7 @@ outputs:
     value: ${{ steps.generate-attestations.outputs.attestations }}
   image:
     description: "Published image tags"
-    value: ${{ steps.meta.outputs.tags }}
+    value: ${{ steps.out.outputs.image }}
   digest:
     description: "Image digest"
     value: ${{ steps.build-and-push.outputs.digest }}
@@ -43,7 +43,7 @@ runs:
   using: "composite"
   steps:
     ###########################################################################
-    # 1. Parse SLSA workflow inputs (THIS WAS THE MISSING PART)
+    # 1. Parse SLSA workflow inputs
     ###########################################################################
     - name: Parse SLSA workflow inputs
       id: parse
@@ -51,17 +51,15 @@ runs:
       run: |
         echo "REGISTRY=$(echo '${{ inputs.slsa-workflow-inputs }}' | jq -r '.registry')" >> $GITHUB_ENV
         echo "IMAGE_NAME=$(echo '${{ inputs.slsa-workflow-inputs }}' | jq -r '.image_name')" >> $GITHUB_ENV
-        echo "GITHUB_TOKEN=$(echo '${{ inputs.slsa-workflow-secret1 }}')" >> $GITHUB_ENV
-        echo "GITHUB_TOKEN=$(echo '${{ inputs.slsa-workflow-secret1 }}')"
+        echo "GITHUB_TOKEN=${{ inputs.slsa-workflow-secret1 }}" >> $GITHUB_ENV
 
     ###########################################################################
-    # 2. Build + Sign + Verify + Emit SLSA Layout
+    # 2. Checkout and setup
     ###########################################################################
-
     - name: Checkout repository
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
 
-    - name: Get image tag (strip leading v only for tag)
+    - name: Get image tag
       id: get_image_tag
       shell: bash
       run: |
@@ -76,7 +74,6 @@ runs:
 
         echo "VERSION_FOR_GIT=${VERSION_FOR_GIT}" >> $GITHUB_ENV
         echo "VERSION_FOR_TAG=${VERSION_FOR_TAG}" >> $GITHUB_ENV
-
         echo "image_tag=${VERSION_FOR_TAG}" >> $GITHUB_OUTPUT
 
     - name: Install cosign
@@ -96,6 +93,9 @@ runs:
         username: ${{ github.actor }}
         password: ${{ env.GITHUB_TOKEN }}
 
+    ###########################################################################
+    # 3. Build and push Docker image
+    ###########################################################################
     - name: Extract Docker metadata
       id: meta
       uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f
@@ -120,71 +120,65 @@ runs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Output bundle
-      id: out
-      shell: bash
-      env:
-        TAGS: ${{ steps.meta.outputs.tags }}
-        DIGEST: ${{ steps.build-and-push.outputs.digest }}
-        ATTEST: ${{ steps.generate-layout.outputs.attestations }}
-
-      run: |
-        FIRST_TAG=$(printf '%s\n' "$TAGS" | head -n1)
-        echo "image=$FIRST_TAG" >> $GITHUB_OUTPUT
-        echo "digest=$DIGEST" >> $GITHUB_OUTPUT
-        echo "attestations=$ATTEST" >> $GITHUB_OUTPUT
-    # - name: Sign the published Docker image if: ${{ github.event_name != 'pull_request' }}
-    #   shell: bash
-    #   env:
-    #     TAGS: ${{ steps.meta.outputs.tags }}
-    #     DIGEST: ${{ steps.build-and-push.outputs.digest }}
-    #   run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
-    #
-    # - name: Verify ghcr image signatures
-    #   if: ${{ github.event_name != 'pull_request' }}
-    #   shell: bash
-    #   env:
-    #     COSIGN_EXPERIMENTAL: 1
-    #     TAGS: ${{ steps.meta.outputs.tags }}
-    #     DIGEST: ${{ steps.build-and-push.outputs.digest }}
-    #   run: |
-    #     echo "${TAGS}" | xargs -I {} cosign verify \
-    #     --certificate-identity=https://github.com/${{ github.repository }}/.github/workflows/release-bitcoind.yml@${{ github.ref }} \
-    #     --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
-    #     "{}@${DIGEST}"
+    ###########################################################################
+    # 4. Generate SLSA layout and attestations
+    ###########################################################################
     - name: Generate layout file
       id: generate-layout
       env:
         SLSA_OUTPUTS_ARTIFACTS_FILE: ${{ inputs.slsa-layout-file }}
-        BUILD_DIR: ./../__TOOL_CHECKOUT_DIR__/avalanchego/build
-        BINARY_NAME: ${{ fromJSON(inputs.slsa-workflow-inputs).build_artifact_name }}
+        IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        DIGEST: ${{ steps.build-and-push.outputs.digest }}
       shell: bash
       run: |
         set -euo pipefail
 
         mkdir -p "$(dirname "$SLSA_OUTPUTS_ARTIFACTS_FILE")"
 
-        subjects=""
-        for binary in "$BUILD_DIR/avalanchego" "$BUILD_DIR/plugins/evm"; do
-          if [ -f "$binary" ]; then
-            hash=$(sha256sum "$binary" | awk '{print $1}')
-            subject_name=$(basename "$binary")
-
-            [ -n "$subjects" ] && subjects+=","
-
-            printf -v subject '{"name": "%s", "digest": {"sha256": "%s"}}' "$subject_name" "$hash"
-            subjects+="$subject"
-          fi
-        done
+        # Extract sha256 hash from digest (format: sha256:abc123...)
+        HASH=$(echo "$DIGEST" | cut -d':' -f2)
 
         cat <<EOF > "$SLSA_OUTPUTS_ARTIFACTS_FILE"
         {
           "version": 1,
           "attestations": [{
-            "name": "$BINARY_NAME-binaries",
-            "subjects": [${subjects}]
+            "name": "bitcoind-image",
+            "subjects": [
+              {
+                "name": "$IMAGE",
+                "digest": {
+                  "sha256": "$HASH"
+                }
+              }
+            ]
           }]
         }
         EOF
 
+        echo "Generated layout file:"
         cat "$SLSA_OUTPUTS_ARTIFACTS_FILE"
+
+    - name: Generate attestations output
+      id: generate-attestations
+      shell: bash
+      env:
+        IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        DIGEST: ${{ steps.build-and-push.outputs.digest }}
+      run: |
+        HASH=$(echo "$DIGEST" | cut -d':' -f2)
+        ATTESTATIONS=$(jq -cn --arg name "$IMAGE" --arg hash "$HASH" '[{"name": $name, "digest": {"sha256": $hash}}]')
+        echo "attestations=$ATTESTATIONS" >> $GITHUB_OUTPUT
+
+    ###########################################################################
+    # 5. Output bundle
+    ###########################################################################
+    - name: Output bundle
+      id: out
+      shell: bash
+      env:
+        TAGS: ${{ steps.meta.outputs.tags }}
+        DIGEST: ${{ steps.build-and-push.outputs.digest }}
+      run: |
+        FIRST_TAG=$(printf '%s\n' "$TAGS" | head -n1)
+        echo "image=$FIRST_TAG" >> $GITHUB_OUTPUT
+        echo "digest=$DIGEST" >> $GITHUB_OUTPUT
