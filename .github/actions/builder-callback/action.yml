@@ -109,8 +109,7 @@ runs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    # - name: Sign the published Docker image
-    #   if: ${{ github.event_name != 'pull_request' }}
+    # - name: Sign the published Docker image if: ${{ github.event_name != 'pull_request' }}
     #   shell: bash
     #   env:
     #     TAGS: ${{ steps.meta.outputs.tags }}
@@ -134,15 +133,29 @@ runs:
       id: generate-attestations
       shell: bash
       run: |
+        TAG="${{ steps.meta.outputs.tags }}"
+        DIGEST="${{ steps.build-and-push.outputs.digest }}"
+
+        # Extract the sha256 digest only (strip "sha256:")
+        SHA256="${DIGEST#sha256:}"
+
         cat <<EOF > "${{ inputs.slsa-layout-file }}"
         {
-          "artifacts": [
+          "version": 1,
+          "attestations": [
             {
-              "name": "${{ steps.meta.outputs.tags }}",
-              "digest": "${{ steps.build-and-push.outputs.digest }}"
+              "name": "${TAG}",
+              "subjects": [
+                {
+                  "name": "${TAG}",
+                  "digest": {
+                    "sha256": "${SHA256}"
+                  }
+                }
+              ]
             }
           ]
         }
         EOF
 
-        echo "attestations=$(jq -c . "${{ inputs.slsa-layout-file }}")" >> $GITHUB_OUTPUT
+        echo "attestations=$(jq -c . "${{ inputs.slsa-layout-file
