@@ -146,8 +146,11 @@ jobs:
 
       - name: Upload attestation to GHCR using digest naming
         env:
-          IMAGE: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).image }}
+          IMAGE_NAME: ${{ inputs.image_name }}
+          REGISTRY: ${{ inputs.registry }}
           DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
         run: |
+          DIGEST_TAG=$(echo "$DIGEST" | sed 's/:/-/g')
+
           # Upload using the same pattern as cosign signatures
-          cosign upload blob -f "$ATTESTATION_FILE" "${IMAGE}:${DIGEST//sha256:/sha256-}.att"
+          cosign upload blob -f "$ATTESTATION_FILE" "${REGISTRY}/${IMAGE_NAME}:${DIGEST_TAG}.att"
