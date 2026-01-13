@@ -144,6 +144,28 @@ jobs:
           fi
 
           echo "Found attestation: $ATTESTATION_FILE"
+          echo "Content preview:"
+          head -c 500 "$ATTESTATION_FILE"
+          echo ""
+
+          # Check if it's a Sigstore bundle format and extract the DSSE envelope
+          if jq -e '.mediaType' "$ATTESTATION_FILE" > /dev/null 2>&1; then
+            echo "Detected Sigstore bundle format, extracting DSSE envelope..."
+            jq '.dsseEnvelope' "$ATTESTATION_FILE" > attestation-dsse.json
+            ATTESTATION_FILE="attestation-dsse.json"
+          fi
+
+          # Verify the payload type
+          PAYLOAD_TYPE=$(jq -r '.payloadType' "$ATTESTATION_FILE")
+          echo "Payload type: $PAYLOAD_TYPE"
+
+          if [ "$PAYLOAD_TYPE" != "application/vnd.in-toto+json" ]; then
+            echo "Error: Invalid payload type. Expected application/vnd.in-toto+json"
+            echo "File contents:"
+            cat "$ATTESTATION_FILE"
+            exit 1
+          fi
+
           echo "Attaching to: ${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
 
           cosign attach attestation \
