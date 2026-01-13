@@ -1,5 +1,8 @@
 name: "Build Callback Action"
 description: "Builds bitcoind image for SLSA provenance"
+permissions:
+  id-token: write
+  contents: read
 
 inputs:
   slsa-workflow-inputs:
