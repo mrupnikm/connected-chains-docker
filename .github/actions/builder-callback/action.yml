@@ -109,14 +109,36 @@ runs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
+    - name: Fetch OIDC token for cosign
+      id: oidc
+      shell: bash
+      run: |
+        set -euo pipefail
+        TOKEN=$(curl -sSL \
+          -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+          "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sigstore")
+        echo "token=$(echo "$TOKEN" | jq -r '.value')" >> $GITHUB_OUTPUT
+
     - name: Sign the published Docker image
       if: ${{ github.event_name != 'pull_request' }}
       shell: bash
       env:
         TAGS: ${{ steps.meta.outputs.tags }}
         DIGEST: ${{ steps.build-and-push.outputs.digest }}
-      run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+        COSIGN_EXPERIMENTAL: "true"
+        COSIGN_IDENTITY_TOKEN: ${{ steps.oidc.outputs.token }}
+      run: |
+        echo "${TAGS}" | xargs -I {} \
+          cosign sign --yes --identity-token "$COSIGN_IDENTITY_TOKEN" {}@${DIGEST}
 
+    # - name: Sign the published Docker image
+    #   if: ${{ github.event_name != 'pull_request' }}
+    #   shell: bash
+    #   env:
+    #     TAGS: ${{ steps.meta.outputs.tags }}
+    #     DIGEST: ${{ steps.build-and-push.outputs.digest }}
+    #   run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+    #
     # - name: Verify ghcr image signatures
     #   if: ${{ github.event_name != 'pull_request' }}
     #   shell: bash
