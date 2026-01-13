@@ -109,42 +109,13 @@ jobs:
       packages: write
       contents: read
     steps:
-      - name: Install cosign
-        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad
-        with:
-          cosign-release: "v2.5.3"
-
-      - name: Download attestations
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ needs.slsa-run.outputs.attestations-download-name }}
-          path: ./attestations
-
-      - name: Extract and rename attestation file
-        env:
-          DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
+      - name: Install ORAS
         run: |
-          cd ./attestations
-          tar -xzf folder.tgz
-          ATTESTATION_FILE=$(find . -name "*.slsa" | head -n 1)
+          curl -LO https://github.com/oras-project/oras/releases/download/v1.1.0/oras_1.1.0_linux_amd64.tar.gz
+          tar -xzf oras_*.tar.gz
+          sudo mv oras /usr/local/bin/
 
-          if [ -z "$ATTESTATION_FILE" ]; then
-            echo "Error: No .slsa file found"
-            exit 1
-          fi
-
-          DIGEST_HASH=$(echo "$DIGEST" | cut -d':' -f2)
-          cp "$ATTESTATION_FILE" "../${DIGEST_HASH}.intoto.jsonl"
-          echo "ATTESTATION_FILE=${DIGEST_HASH}.intoto.jsonl" >> $GITHUB_ENV
-
-      - name: Log into registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.gh_token }}
-
-      - name: Upload attestation to GHCR using digest naming
+      - name: Upload attestation to GHCR with ORAS
         env:
           IMAGE_NAME: ${{ inputs.image_name }}
           REGISTRY: ${{ inputs.registry }}
@@ -152,5 +123,50 @@ jobs:
         run: |
           DIGEST_TAG=$(echo "$DIGEST" | sed 's/:/-/g')
 
-          # Upload using the same pattern as cosign signatures
-          cosign upload blob -f "$ATTESTATION_FILE" "${REGISTRY}/${IMAGE_NAME}:${DIGEST_TAG}.att"
+          oras push "${REGISTRY}/${IMAGE_NAME}:${DIGEST_TAG}.att" \
+            "$ATTESTATION_FILE:application/vnd.in-toto+json"
+          # - name: Install cosign
+          #   uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad
+          #   with:
+          #     cosign-release: "v2.5.3"
+          #
+          # - name: Download attestations
+          #   uses: actions/download-artifact@v4
+          #   with:
+          #     name: ${{ needs.slsa-run.outputs.attestations-download-name }}
+          #     path: ./attestations
+          #
+          # - name: Extract and rename attestation file
+          #   env:
+          #     DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
+          #   run: |
+          #     cd ./attestations
+          #     tar -xzf folder.tgz
+          #     ATTESTATION_FILE=$(find . -name "*.slsa" | head -n 1)
+          #
+          #     if [ -z "$ATTESTATION_FILE" ]; then
+          #       echo "Error: No .slsa file found"
+          #       exit 1
+          #     fi
+          #
+          #     DIGEST_HASH=$(echo "$DIGEST" | cut -d':' -f2)
+          #     cp "$ATTESTATION_FILE" "../${DIGEST_HASH}.intoto.jsonl"
+          #     echo "ATTESTATION_FILE=${DIGEST_HASH}.intoto.jsonl" >> $GITHUB_ENV
+          #
+          # - name: Log into registry
+          #   uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
+          #   with:
+          #     registry: ghcr.io
+          #     username: ${{ github.actor }}
+          #     password: ${{ secrets.gh_token }}
+          #
+          # - name: Upload attestation to GHCR using digest naming
+          #   env:
+          #     IMAGE_NAME: ${{ inputs.image_name }}
+          #     REGISTRY: ${{ inputs.registry }}
+          #     DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
+          #   run: |
+          #     DIGEST_TAG=$(echo "$DIGEST" | sed 's/:/-/g')
+          #
+          #     # Upload using the same pattern as cosign signatures
+          #     cosign upload blob -f "$ATTESTATION_FILE" "${REGISTRY}/${IMAGE_NAME}:${DIGEST_TAG}.att"
