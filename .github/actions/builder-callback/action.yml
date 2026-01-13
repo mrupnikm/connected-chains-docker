@@ -1,8 +1,5 @@
 name: "Build Callback Action"
 description: "Builds bitcoind image for SLSA provenance"
-permissions:
-  id-token: write
-  contents: read
 
 inputs:
   slsa-workflow-inputs:
@@ -128,25 +125,6 @@ runs:
     #     --certificate-identity=https://github.com/${{ github.repository }}/.github/workflows/release-bitcoind.yml@${{ github.ref }} \
     #     --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
     #     "{}@${DIGEST}"
-    - name: Debug SLSA variables
-      shell: bash
-      run: |
-        echo "=== DEBUG: meta tags ==="
-        echo "${{ steps.meta.outputs.tags }}"
-        echo "-------------------------"
-
-        echo "=== DEBUG: build digest ==="
-        echo "${{ steps.build-and-push.outputs.digest }}"
-        echo "-------------------------"
-
-        echo "=== DEBUG: first tag via jq ==="
-        echo "${{ steps.meta.outputs.tags }}" | jq -R -s -r 'split("\n") | .[0]'
-        echo "-------------------------"
-
-        echo "=== DEBUG: raw layout file path ==="
-        echo "${{ inputs.slsa-layout-file }}"
-        echo "-------------------------"
-
     - name: Generate layout file
       id: generate-layout
       env:
