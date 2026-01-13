@@ -120,6 +120,23 @@ jobs:
           name: ${{ needs.slsa-run.outputs.attestations-download-name }}
           path: ./attestations
 
+      - name: Extract and rename attestation file
+        env:
+          DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
+        run: |
+          cd ./attestations
+          tar -xzf folder.tgz
+          ATTESTATION_FILE=$(find . -name "*.slsa" | head -n 1)
+
+          if [ -z "$ATTESTATION_FILE" ]; then
+            echo "Error: No .slsa file found"
+            exit 1
+          fi
+
+          DIGEST_HASH=$(echo "$DIGEST" | cut -d':' -f2)
+          cp "$ATTESTATION_FILE" "../${DIGEST_HASH}.intoto.jsonl"
+          echo "ATTESTATION_FILE=${DIGEST_HASH}.intoto.jsonl" >> $GITHUB_ENV
+
       - name: Log into registry
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
         with:
@@ -127,12 +144,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.gh_token }}
 
-      - name: Upload attestation to GHCR
+      - name: Upload attestation to GHCR using digest naming
         env:
           IMAGE: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).image }}
           DIGEST: ${{ fromJSON(needs.slsa-run.outputs.build-artifacts-outputs).digest }}
         run: |
-          ATTESTATION_FILE=$(find ./attestations -type f | head -n 1)
-
-          # Upload attestation as a blob reference to the image
-          cosign upload blob -f "$ATTESTATION_FILE" "${IMAGE}@${DIGEST}"
+          # Upload using the same pattern as cosign signatures
+          cosign upload blob -f "$ATTESTATION_FILE" "${IMAGE}:${DIGEST//sha256:/sha256-}.att"
