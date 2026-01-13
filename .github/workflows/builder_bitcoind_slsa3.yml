@@ -139,7 +139,7 @@ jobs:
           cp "$ATTESTATION_FILE" "${DIGEST_HASH}.intoto.jsonl"
 
           echo "ATTESTATION_FILENAME=${DIGEST_HASH}.intoto.jsonl" >> $GITHUB_ENV
-          echo "ATTESTATION_PATH=$(pwd)/${DIGEST_HASH}.intoto.jsonl" >> $GITHUB_ENV
+          echo "ATTESTATION_DIR=$(pwd)" >> $GITHUB_ENV
           ls -lah "${DIGEST_HASH}.intoto.jsonl"
 
       - name: Install ORAS
@@ -158,5 +158,6 @@ jobs:
 
           DIGEST_TAG=$(echo "$DIGEST" | sed 's/:/-/g')
 
+          cd "${ATTESTATION_DIR}"
           oras push "${REGISTRY}/${IMAGE_NAME}:${DIGEST_TAG}.att" \
-            "${ATTESTATION_PATH}:application/vnd.in-toto+json"
+            "${ATTESTATION_FILENAME}:application/vnd.in-toto+json"
