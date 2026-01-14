@@ -127,7 +127,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.gh_token }}
 
-      - name: Sign and attach provenance
+      - name: Attach SLSA provenance to image
         env:
           IMAGE_NAME: ${{ inputs.image_name }}
           REGISTRY: ${{ inputs.registry }}
@@ -145,20 +145,16 @@ jobs:
           fi
 
           echo "Found attestation: $ATTESTATION_FILE"
+          echo "Attestation contents:"
+          cat "$ATTESTATION_FILE" | jq .
 
-          # Extract the predicate from the SLSA attestation
-          # The payload is base64-encoded in the dsseEnvelope
-          jq -r '.dsseEnvelope.payload' "$ATTESTATION_FILE" | base64 -d | jq '.predicate' > predicate.json
+          # Extract the DSSE envelope (the signed attestation) and attach it directly
+          # This preserves the original signature from the SLSA builder
+          jq '.dsseEnvelope' "$ATTESTATION_FILE" > attestation.json
 
-          echo "Extracted predicate:"
-          cat predicate.json | jq .
-
-          # Sign and attach the provenance attestation using cosign attest
-          COSIGN_EXPERIMENTAL=1 \
-          cosign attest \
-            --predicate="predicate.json" \
-            --type slsaprovenance \
-            --yes \
+          echo "Attaching signed attestation to image..."
+          cosign attach attestation \
+            --attestation attestation.json \
             "${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
 
-          echo "Successfully signed and attached provenance to: ${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
+          echo "Successfully attached SLSA provenance to: ${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
