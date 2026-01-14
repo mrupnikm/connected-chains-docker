@@ -148,13 +148,27 @@ jobs:
           echo "Attestation contents:"
           cat "$ATTESTATION_FILE" | jq .
 
-          # Extract the DSSE envelope (the signed attestation) and attach it directly
-          # This preserves the original signature from the SLSA builder
-          jq '.dsseEnvelope' "$ATTESTATION_FILE" > attestation.json
+          # Extract the full in-toto statement from the DSSE envelope
+          # The payload is base64url encoded
+          jq -r '.dsseEnvelope.payload' "$ATTESTATION_FILE" | base64 -d > statement.json
 
-          echo "Attaching signed attestation to image..."
-          cosign attach attestation \
-            --attestation attestation.json \
+          echo "In-toto statement:"
+          cat statement.json | jq .
+
+          # Extract predicate type and predicate
+          PREDICATE_TYPE=$(jq -r '.predicateType' statement.json)
+          jq '.predicate' statement.json > predicate.json
+
+          echo "Predicate type: $PREDICATE_TYPE"
+          echo "Predicate:"
+          cat predicate.json | jq .
+
+          # Sign and attach using the exact predicate type from the SLSA attestation
+          # This uploads to Rekor for transparency
+          cosign attest \
+            --predicate predicate.json \
+            --type "$PREDICATE_TYPE" \
+            --yes \
             "${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
 
           echo "Successfully attached SLSA provenance to: ${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
