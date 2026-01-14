@@ -3,6 +3,8 @@ name: Release bitcoind image
 on:
   push:
     branches: ["*"]
+    tags: ["*"]
+
 #neki
 jobs:
   release:
